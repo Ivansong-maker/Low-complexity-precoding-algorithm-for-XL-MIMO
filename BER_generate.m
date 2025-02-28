@@ -1,47 +1,51 @@
-%Initialization
-close all;
-clearvars;
-% -- set up default/custom parameters
-    disp('using default simulation settings and parameters...')
-    % set default simulation parameters
-    par.runId = 0;              % simulation ID (used to reproduce results)
-    par.U = 16;                 % number of single-antenna users
-    par.B = 256;                % number of base-station antennas (B>>U)
-    par.T = 10;                 % number of time slots
-    par.C = 16;                 % number of antenna clusters
-    par.mod = '64QAM';          % modulation type: 'BPSK','QPSK','16QAM','64QAM','8PSK'
-    par.trials = 1e2;           % number of Monte-Carlo trials (transmissions)
-    par.NTPdB_list = -10:2:40;  % list of normalized transmit power [dB] values
-    par.rho2 = 1;               % rho^2=1 (should NOT affect your results!)
-    par.precoder = {'RZF','rKA','SwoR-rKA'};
-    par.channel = 'Imperfect CSI XL-MIMO Channel';   % channel model 'Imperfect CSI XL-MIMO Channel'
-    par.betaest = 'pilot';      % 'pilot'
-    par.save = false;            % save results (true,false)
-    par.plot = true;            % plot results (true,false)
-    % algorithm-dependent parameters
-    % FD_WF (please tune if you change the scenario)
-    par.FD_WF.stomp = 0.125*par.C; % determines how much to stomp regularization (C)
-    % DP_legacy (please tune if you change the scenario)
-    par.DP_legacy.delta = 0.3; % Lagrange scaling (1.0)
-    par.DP_legacy.gamma = 1.0; % Lagrange stepsize (1.0)
-    par.DP_legacy.maxiter = 2; % keep at 2
-% -- initialization
-% use runId random seed (enables reproducibility)
+% 初始化
+close all; % 关闭所有图形窗口
+clearvars; % 清除所有变量
+
+% -- 设置默认/自定义参数
+disp('使用默认仿真设置和参数...');
+% 设置默认仿真参数
+par.runId = 0;              % 仿真ID（用于复现结果）
+par.U = 16;                 % 单天线用户数量
+par.B = 256;                % 基站天线数量（B>>U）
+par.T = 10;                 % 时间槽数量
+par.C = 16;                 % 天线簇数量
+par.mod = '64QAM';          % 调制类型：'BPSK','QPSK','16QAM','64QAM','8PSK'
+par.trials = 1e2;           % 蒙特卡洛试验次数（传输次数）
+par.NTPdB_list = -10:2:40;  % 归一化发射功率[dB]值列表
+par.rho2 = 1;               % rho^2=1（不应影响结果！）
+par.precoder = {'RZF','rKA','SwoR-rKA'}; % 预编码器类型
+par.channel = 'Imperfect CSI XL-MIMO Channel'; % 信道模型
+par.betaest = 'pilot';      % 信道估计方法
+par.save = false;           % 是否保存结果（true/false）
+par.plot = true;            % 是否绘制结果（true/false）
+
+% 算法依赖参数
+% FD_WF（如果更改场景，请调整）
+par.FD_WF.stomp = 0.125*par.C; % 确定正则化步长（与C相关）
+% DP_legacy（如果更改场景，请调整）
+par.DP_legacy.delta = 0.3; % 拉格朗日乘子缩放因子（1.0）
+par.DP_legacy.gamma = 1.0; % 拉格朗日步长（1.0）
+par.DP_legacy.maxiter = 2; % 保持为2
+
+% -- 初始化
+% 使用runId作为随机种子（确保可复现性）
 rng(par.runId);
-% simulation name (used for saving results)
+% 仿真名称（用于保存结果）
 par.simName = ['ERR_',num2str(par.U),'x',num2str(par.B), '_C', ...
     num2str(par.C), '_', par.betaest, '_', par.mod, '_', num2str(par.trials),'Trials'];
-% set up Gray-mapped constellation alphabet (some are selected according to IEEE 802.11)
+
+% 设置格雷映射星座符号（部分符号根据IEEE 802.11选择）
 switch (par.mod)
     case 'BPSK',
-        par.symbols = [ -1 1 ];
+        par.symbols = [ -1 1 ]; % BPSK符号
     case 'QPSK',
-        par.symbols = [ -1-1i,-1+1i,+1-1i,+1+1i ];
+        par.symbols = [ -1-1i,-1+1i,+1-1i,+1+1i ]; % QPSK符号
     case '16QAM',
         par.symbols = [ -3-3i,-3-1i,-3+3i,-3+1i, ...
             -1-3i,-1-1i,-1+3i,-1+1i, ...
             +3-3i,+3-1i,+3+3i,+3+1i, ...
-            +1-3i,+1-1i,+1+3i,+1+1i ];
+            +1-3i,+1-1i,+1+3i,+1+1i ]; % 16QAM符号
     case '64QAM',
         par.symbols = [ -7-7i,-7-5i,-7-1i,-7-3i,-7+7i,-7+5i,-7+1i,-7+3i, ...
             -5-7i,-5-5i,-5-1i,-5-3i,-5+7i,-5+5i,-5+1i,-5+3i, ...
@@ -50,12 +54,12 @@ switch (par.mod)
             +7-7i,+7-5i,+7-1i,+7-3i,+7+7i,+7+5i,+7+1i,+7+3i, ...
             +5-7i,+5-5i,+5-1i,+5-3i,+5+7i,+5+5i,+5+1i,+5+3i, ...
             +1-7i,+1-5i,+1-1i,+1-3i,+1+7i,+1+5i,+1+1i,+1+3i, ...
-            +3-7i,+3-5i,+3-1i,+3-3i,+3+7i,+3+5i,+3+1i,+3+3i ];
+            +3-7i,+3-5i,+3-1i,+3-3i,+3+7i,+3+5i,+3+1i,+3+3i ]; % 64QAM符号
     case '8PSK',
         par.symbols = [ exp(1i*2*pi/8*0), exp(1i*2*pi/8*1), ...
             exp(1i*2*pi/8*7), exp(1i*2*pi/8*6), ...
             exp(1i*2*pi/8*3), exp(1i*2*pi/8*2), ...
-            exp(1i*2*pi/8*4), exp(1i*2*pi/8*5) ];
+            exp(1i*2*pi/8*4), exp(1i*2*pi/8*5) ]; % 8PSK符号
     case '16PSK',
         par.symbols = [ ...
             exp(1i*2*pi*0/16)  ... % 0000
@@ -76,89 +80,93 @@ switch (par.mod)
             exp(1i*2*pi*10/16) ];  % 1111
 end
 
-% compute symbol energy
+% 计算符号能量
 par.Es = mean(abs(par.symbols).^2);
 
-% number of antenns per cluster
+% 每个簇的天线数量
 par.S = par.B/par.C;
 
-% precompute bit labels
-par.bps = log2(length(par.symbols)); % number of bits per symbol
+% 预计算比特标签
+par.bps = log2(length(par.symbols)); % 每个符号的比特数
 par.bits = de2bi(0:length(par.symbols)-1,par.bps,'left-msb');
 
-% track simulation time
+% 跟踪仿真时间
 time_elapsed = 0;
-j=sqrt(-1);
-rng(1);
-%% Simulation Parameters
-M=256; % The number of total antennas
-K=16; % The number of users
-D_vec=2:2:60; % The number of active antennas per user
-rho_dB=10; % SNR in dB
-rho=10^(rho_dB/10);
-P=1; % Total power
-Normalization=2; % Normalization type (Possible values 1: Nromalization 1, 2: Normalization 2)
-%
-ens=1e2; % Independent channel realizations for ensemble averaging
-%% Main loop (over the number of active antennas D)
+j=sqrt(-1); % 虚数单位
+rng(1); % 设置随机种子
+
+%% 仿真参数
+M=256; % 总天线数量
+K=16; % 用户数量
+D_vec=2:2:60; % 每个用户的激活天线数量
+rho_dB=10; % 信噪比（dB）
+rho=10^(rho_dB/10); % 将dB转换为线性比例
+P=1; % 总功率
+Normalization=2; % 归一化类型（可能的值：1 - 归一化1，2 - 归一化2）
+
+% 独立信道实现的集合平均
+ens=1e2; % 独立信道实现次数
+
+%% 主循环（遍历激活天线数量D）
 for ii=1:length(D_vec)
-    D=D_vec(ii);
-    %% Best case
-    setDbest=[ones(D,K);zeros(M-D,K)]; % Initializing active antenna indices for best case
+    D=D_vec(ii); % 当前激活天线数量
+    %% 最佳情况
+    setDbest=[ones(D,K);zeros(M-D,K)]; % 初始化最佳情况下的激活天线索引
     for kk=1:K
-        setDbest(:,kk)=circshift(setDbest(:,kk),(kk-1)*D); % Circulant shifts to obtain the active antenna indices for best case
+        setDbest(:,kk)=circshift(setDbest(:,kk),(kk-1)*D); % 循环移位以获得最佳情况下的激活天线索引
     end
-    %% Worst case
-    setDworst=[ones(D,K);zeros(M-D,K)]; % active antenna indices for worst case
-    %% Loop for ensemble averaging   
-        %% Simulation Stationary
-        H=1/sqrt(2)*(randn(M,K)+j*randn(M,K)); % The channel matrix for stationary case
+    %% 最差情况
+    setDworst=[ones(D,K);zeros(M-D,K)]; % 最差情况下的激活天线索引
+    %% 集合平均循环   
+        %% 静态仿真
+        H=1/sqrt(2)*(randn(M,K)+j*randn(M,K)); % 静态情况下的信道矩阵
         if(Normalization==1)
-            Hbest=H.*setDbest*sqrt(M/D); % The channel matrix for the best case
-            Hworst=H.*setDworst*sqrt(M/D); % The channel matrix for the worst case
+            Hbest=H.*setDbest*sqrt(M/D); % 最佳情况下的信道矩阵
+            Hworst=H.*setDworst*sqrt(M/D); % 最差情况下的信道矩阵
         elseif(Normalization==2)
-            Hbest=H.*setDbest; % The channel matrix for the best case
-            Hworst=H.*setDworst; % The channel matrix for the worst case
+            Hbest=H.*setDbest; % 最佳情况下的信道矩阵
+            Hworst=H.*setDworst; % 最差情况下的信道矩阵
         end
 end    
-% -- start simulation
+% -- 开始仿真
 
-% - initialize result arrays (detector x normalized transmit power)
+% - 初始化结果数组（预编码器 x 归一化发射功率）
 [res.PER, res.SER, res.BER ] = deal(zeros(length(par.precoder),length(par.NTPdB_list)));
 [res.TxPower, res.RxPower, res.TIME] = deal(zeros(length(par.precoder),length(par.NTPdB_list)));
 
-% compute noise variances to be considered: NTP = rho^2/N0
+% 计算需要考虑的噪声方差：NTP = rho^2/N0
 N0_list = par.rho2*10.^(-par.NTPdB_list/10);
-% trials loop
+
+% 试验循环
 tic
 for t=1:par.trials
 
-    % generate data
+    % 生成数据
     for qq=1:par.T
-        % generate random bit stream
+        % 生成随机比特流
         B(:,:,qq) = randi([0 1],par.U,par.bps);
-        % generate transmit symbol
+        % 生成发射符号
         Idx(:,qq) = bi2de(B(:,:,qq),'left-msb')+1;
         S(:,qq) = par.symbols(Idx(:,qq)).';
     end
 
-    % generate masks
+    % 生成掩码
     MaskI = true(par.U,par.T);
     MaskT = true(1,par.T);
-    % here you could add other estimation methods
+    % 在这里可以添加其他估计方法
     switch par.betaest
         case {'pilot'}
-            S(:,1) = ones(par.U,1)*sqrt(par.Es); % just send all ones in the first time slots
+            S(:,1) = ones(par.U,1)*sqrt(par.Es); % 在第一个时间槽中发送全1
             MaskI(:,1) = false;
             MaskT(1,1) = false;
         otherwise,
-            error('par.betaest not specified')
+            error('par.betaest未指定')
     end
 
-    % generate iid Gaussian channel matrix and noise matrix
+    % 生成独立同分布高斯信道矩阵和噪声矩阵
     N = sqrt(0.5)*(randn(par.U,par.T)+1i*randn(par.U,par.T));
 
-    % you can add your own channel model here
+    % 在这里可以添加自己的信道模型
     switch par.channel
         case 'Imperfect CSI XL-MIMO Channel'
             a=0.1;
@@ -171,91 +179,90 @@ for t=1:par.trials
     error_channel=(randn(par.B,par.U)+1i*randn(par.B,par.U))/sqrt(2*par.U);
     H = (sqrt(1-tau^2)*Hn + tau*sqrtmPhi*error_channel)';
         otherwise
-            %Perfect CSI XL-MIMO Channel
+            % 完美CSI XL-MIMO信道
             H=Hbest';
     end
 
-    % algorithm loop
+    % 算法循环
     for d=1:length(par.precoder)
 
-        % normalized transmit power loop
+        % 归一化发射功率循环
         for k=1:length(par.NTPdB_list)
 
-            % set noise variance
+            % 设置噪声方差
             N0 = N0_list(k);
 
-            % record time used by the beamformer
+            % 记录波束形成器的运行时间
             starttime = toc;
 
-            % beamformers
+            % 波束形成器
             switch (par.precoder{d})
                
                 case 'rKA',
-                    [X,beta]=RKA(par,S,H,N0);
+                    [X,beta]=RKA(par,S,H,N0); % rKA波束形成器
                 case 'SwoR-rKA',
-                    [X,beta]=RKA2(par,S,H,N0);
+                    [X,beta]=RKA2(par,S,H,N0); % SwoR-rKA波束形成器
                 case 'RZF',
-                    [X,beta]=RZF(par,S,H,N0);
+                    [X,beta]=RZF(par,S,H,N0); % RZF波束形成器
                     case 'ZF',
-                    [X,beta]=ZF(par,S,H,N0);
+                    [X,beta]=ZF(par,S,H,N0); % ZF波束形成器
                
                 otherwise,
-                    error('par.precoder not specified')
+                    error('par.precoder未指定')
 
             end
 
-            % record beamforming simulation time
+            % 记录波束形成仿真时间
             res.TIME(d,k) = res.TIME(d,k) + (toc-starttime);
 
-
-            % transmit data over noisy channel
+            % 在噪声信道上传输数据
             HX = H*X;
             Y = HX + sqrt(N0)*N;
 
-            % extract transmit and receive power
+            % 提取发射和接收功率
             res.TxPower(d,k) = res.TxPower(d,k) + mean(sum(abs(X(:)).^2))/par.T;
             res.RxPower(d,k) = res.RxPower(d,k) + mean(sum(abs(HX(:)).^2))/par.U/par.T;
 
-            % UEs must estimate beta
+            % 用户必须估计beta
             switch par.betaest
-                case 'genie', % perfect beta directly from beamformer
+                case 'genie', % 完美的beta直接来自波束形成器
                     betaest = ones(par.U,1)*beta;
-                case 'pilot', % knows that first symbols are for training
-                    betaest = real(1./Y(:,1)*sqrt(par.Es)); % ML estimate since we have no prior on beta
+                case 'pilot', % 知道第一个符号用于训练
+                    betaest = real(1./Y(:,1)*sqrt(par.Es)); % ML估计，因为我们对beta没有先验知识
             end
 
-            % perform estimation
+            % 执行估计
             Shat = (betaest*ones(1,par.T)).*Y;
 
-            % UE-side hard-output data detection
+            % 用户端硬输出数据检测
             for qq=1:par.T
                 [~,Idxhat(:,qq)] = min(abs(Shat(:,qq)*ones(1,length(par.symbols))-ones(par.U,1)*par.symbols).^2,[],2);
                 Bhat(:,:,qq) = par.bits(Idxhat(:,qq),:);
             end
 
-            % -- compute error and complexity metrics
+            % -- 计算错误和复杂度指标
             err = (Idx(MaskI)~=Idxhat(MaskI));
             res.PER(d,k) = res.PER(d,k) + any(err(:));
             res.SER(d,k) = res.SER(d,k) + sum(err(:))/par.U/par.T;
             tmpBER = B(:,:,MaskT)~=Bhat(:,:,MaskT);
             res.BER(d,k) = res.BER(d,k) + sum(tmpBER(:))/(par.U*par.bps*sum(MaskT));
 
-        end % NTP loop
+        end % 归一化发射功率循环
 
-    end % algorithm loop
+    end % 算法循环
 
-    % keep track of simulation time
+    % 跟踪仿真时间
     if toc>10
         time=toc;
         time_elapsed = time_elapsed + time;
-        fprintf('estimated remaining simulation time: %3.0f min.\n',...
+        fprintf('估计剩余仿真时间：%3.0f分钟。\n',...
             time_elapsed*(par.trials/t-1)/60);
         tic
     end
 
-end % trials loop
+end % 试验循环
 
-% normalize results
+% 归一化结果
 res.PER = res.PER/par.trials;
 res.SER = res.SER/par.trials;
 res.BER = res.BER/par.trials;
@@ -263,21 +270,21 @@ res.TxPower = res.TxPower/par.trials;
 res.RxPower = res.RxPower/par.trials;
 res.TIME = res.TIME/par.trials;
 
-% manually (or visually) check whether the TX power of your precoder is
-% correct (this is a very common mistake in many papers...)
+% 手动（或视觉）检查预编码器的发射功率是否正确
+% （这是许多论文中常见的错误...）
 res.TxPower
 
-% -- save final results (par and res structures)
+% -- 保存最终结果（par和res结构）
 
 if par.save
     save([ par.simName '_' num2str(par.runId) ],'par','res');
 end
 
-% -- show results (generates fairly nice Matlab plots)
+% -- 显示结果（生成Matlab图形）
 
 if par.plot
 
-    % - BER results
+    % - BER结果
     marker_style = {'kx-','bo:','rs--','mv-.','gp-.','bs--','y*--'};
     h = figure(1);
     for d=1:length(par.precoder)
@@ -289,85 +296,91 @@ if par.plot
     hold off
     grid on
     box on
-    xlabel('Normalized transmit power [dB]','FontSize',12,'Interpreter','Latex')
-    ylabel('Uncoded bit error rate (BER)','FontSize',12,'Interpreter','Latex');
+    xlabel('归一化发射功率 [dB]','FontSize',12,'Interpreter','Latex')
+    ylabel('未编码比特错误率 (BER)','FontSize',12,'Interpreter','Latex');
     if length(par.NTPdB_list) > 1
         axis([min(par.NTPdB_list) max(par.NTPdB_list) 1e-3 1]);
     end
     legend(par.precoder,'FontSize',12,'Interpreter','Latex','location','northeast')
     set(gca,'FontSize',12);
     if par.save
-        % save eps figure (in color and with a reasonable bounding box)
+        % 保存eps图形（彩色，合理边界框）
         print(h,'-loose','-depsc',[ par.simName '_' num2str(par.runId) ])
     end
 end
 save('ber3',"par","res")
 
+% RKA函数
 function [X, beta] = RKA(par,S,H,N0)
 numIterations = 100;
 updateSchedule = ["power","uniform","aa"];
 numRealizations = 20;
-%Go through all the bounds
+% 遍历所有界限
 for b = 1:2
-    %Run RKA
+    % 运行RKA
     V_RKA = functionRKA(par.B,par.U,1,numRealizations,numIterations,H',updateSchedule(2));
 end
 P=(reshape(V_RKA(:,3,:),[par.B par.U]));
 betainv = sqrt(par.rho2)/sqrt(par.Es*trace(P*P'));
 X = betainv*(P*S);
-% average scaling over signals
+% 对信号进行平均缩放
 beta = 1/betainv;
 end
 
+% RKA2函数
 function [X, beta] = RKA2(par,S,H,N0)
 numIterations = 100;
 updateSchedule = ["power","uniform","aa"];
 numRealizations = 20;
-%Go through all the bounds
+% 遍历所有界限
 for b = 1:2
-    %Run RKA
+    % 运行RKA
     V_RKA = functionRKA(par.B,par.U,1,numRealizations,numIterations,H',updateSchedule(1));
 end
 P=(reshape(V_RKA(:,3,:),[par.B par.U]));
 betainv = sqrt(par.rho2)/sqrt(par.Es*trace(P*P'));
 X = betainv*(P*S);
-% average scaling over signals
+% 对信号进行平均缩放
 beta = 1/betainv;
 end
-%% Maximum ratio transmission (MRT) beamforming
+
+%% 最大比传输（MRT）波束形成
 function [X, beta, P] = MRT(par,S,H,N0)
 
-% transmitted signal
+% 传输信号
 P = H';
 betainv = sqrt(par.rho2)/sqrt(par.Es*trace(P*P'));
 X = betainv*(P*S);
 
-% average scaling over signals
+% 对信号进行平均缩放
 beta = 1/betainv;
 
-%beta = 1.0*(norm(s,2)^2+N0*par.U)/(s'*H*x); % that's cheating
+%beta = 1.0*(norm(s,2)^2+N0*par.U)/(s'*H*x); % 这是作弊行为
 
 end
 
+% ZF波束形成
 function [X, beta] = ZF(par,S,H,N0)
 
-% transmitted signal
+% 传输信号
 P = zfinv(par,H);
 betainv = sqrt(par.rho2)/sqrt(par.Es*trace(P*P'));
 X = betainv*(P*S);
 
-% average scaling over signals
+% 对信号进行平均缩放
 beta = 1/betainv;
 
 end
+
+% RZF波束形成
 function [X, beta] = RZF(par,S,H,N0)
 
-% transmitted signal
+% 传输信号
 P =  H'*inv(H*H'+ par.U/par.rho2*eye(par.U));
 betainv = sqrt(par.rho2)/sqrt(par.Es*trace(P*P'));
 X = betainv*(P*S);
 
-% average scaling over signals
+% 对信号进行平均缩放
 beta = 1/betainv;
 
 end
